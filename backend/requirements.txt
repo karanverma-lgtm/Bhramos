@@ -5,3 +5,5 @@ pandas
 playwright
 python-dotenv
 requests
+curl_cffi
+browserforge

@@ -63,7 +63,30 @@ async function fetchLinkedInCookie() {
 }
 
 // Run on popup open
-document.addEventListener("DOMContentLoaded", fetchLinkedInCookie);
+document.addEventListener("DOMContentLoaded", () => {
+  fetchLinkedInCookie();
+
+  // Show/hide WhatsApp section based on Enrich toggle
+  const enrichCheckbox = document.getElementById("enrich");
+  const whatsappSection = document.getElementById("whatsappSection");
+  const campaignSection = document.getElementById("campaignSection");
+  const whatsappCheckbox = document.getElementById("whatsapp");
+
+  enrichCheckbox.addEventListener("change", () => {
+    if (!enrichCheckbox.checked) {
+      whatsappCheckbox.checked = false;
+      campaignSection.style.display = "none";
+    }
+  });
+
+  whatsappCheckbox.addEventListener("change", () => {
+    campaignSection.style.display = whatsappCheckbox.checked ? "block" : "none";
+    // WhatsApp requires enrichment for phone numbers
+    if (whatsappCheckbox.checked) {
+      enrichCheckbox.checked = true;
+    }
+  });
+});
 
 // Start scraping
 document.getElementById("start").addEventListener("click", async () => {
@@ -77,6 +100,8 @@ document.getElementById("start").addEventListener("click", async () => {
     const cookie = document.getElementById("cookie").value;
     const filename = document.getElementById("filename").value.trim() || "scraped_data";
     const enrich = document.getElementById("enrich").checked;
+    const whatsapp = document.getElementById("whatsapp").checked;
+    const campaignName = document.getElementById("campaignName").value.trim() || "default_campaign";
 
     if (!cookie) {
       throw new Error("li_at cookie is required. Log into LinkedIn first.");
@@ -95,11 +120,15 @@ document.getElementById("start").addEventListener("click", async () => {
     startBtn.disabled = true;
     startBtn.innerHTML = '<span class="icon">⌛</span> Scraping...';
     statusDiv.className = "status loading";
-    statusDiv.innerText = enrich ? "Scraping + Enriching (this may take a minute)..." : "Sending to backend...";
+    let statusMsg = "Sending to backend...";
+    if (enrich && whatsapp) statusMsg = "Scraping + Enriching + WhatsApp (this may take a few minutes)...";
+    else if (enrich) statusMsg = "Scraping + Enriching (this may take a minute)...";
+    statusDiv.innerText = statusMsg;
 
     console.log("Config:", config);
     console.log("URL:", tab.url);
     console.log("Enrich:", enrich);
+    console.log("WhatsApp:", whatsapp, "Campaign:", campaignName);
 
     const response = await fetch("http://127.0.0.1:5000/scrape", {
       method: "POST",
@@ -109,7 +138,9 @@ document.getElementById("start").addEventListener("click", async () => {
         config: config,
         cookie: cookie,
         filename: filename,
-        enrich: enrich
+        enrich: enrich,
+        whatsapp: whatsapp,
+        campaignName: campaignName
       })
     });
 

@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Bhramos XPath Scraper",
+  "version": "1.0",
+  "description": "Extract structured data using XPaths and Scrapling backend.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "downloads",
+    "storage",
+    "cookies"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ]
+}

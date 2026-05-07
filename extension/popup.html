@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bhramos Scraper</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Bhramos <span>Scraper</span></h1>
+      <p>Hybrid XPath Extraction</p>
+    </header>
+
+    <div class="form-group row">
+      <div class="col">
+        <label for="maxPages">Max Pages</label>
+        <input type="number" id="maxPages" value="2" min="1" max="50">
+      </div>
+      <div class="col">
+        <label for="cookie">li_at Cookie <span style="color:#10b981;font-size:10px">AUTO</span></label>
+        <input type="password" id="cookie" placeholder="Auto-detected from browser...">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="filename">File Name</label>
+      <input type="text" id="filename" value="linkedin_chro_data" placeholder="e.g. chro_mumbai">
+    </div>
+
+    <div class="form-group enrich-toggle">
+      <label class="toggle-label">
+        <input type="checkbox" id="enrich">
+        <span class="toggle-switch"></span>
+        <span>Enrich with SalesQL <span style="color:#f59e0b;font-size:10px">emails + phones</span></span>
+      </label>
+    </div>
+
+    <div class="form-group">
+      <label for="config">Configuration (JSON)</label>
+      <textarea id="config" spellcheck="false">{
+  "container": "//li[contains(@class, 'reusable-search__result-combined-card')]",
+  "fields": {
+    "name": ".//span[contains(@class, 'entity-result__title-text')]/a/span/span[1]/text()",
+    "link": ".//span[contains(@class, 'entity-result__title-text')]/a/@href",
+    "occupation": ".//div[contains(@class, 'entity-result__primary-subtitle')]/text()"
+  },
+  "pagination": {
+    "type": "page"
+  }
+}</textarea>
+    </div>
+
+    <div class="actions">
+      <button id="start" class="btn-primary">
+        <span class="icon">🚀</span> Start Scraping
+      </button>
+    </div>
+
+    <div id="status" class="status"></div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

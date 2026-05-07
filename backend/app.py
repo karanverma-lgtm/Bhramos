@@ -219,8 +219,8 @@ def send_whatsapp_campaign(rows, campaign_name):
             "templateParams": [first_name or "there"],
             "source": "bhramos-scraper",
             "media": {
-                "url": "https://www.erickson.co.in/wp-content/uploads/2026/01/TASC1and2.jpeg",
-                "filename": "TASC1and2"
+                "url": "https://www.xmonks.com/TASCMAY.jpg",
+                "filename": "TASCMAY"
             },
             "buttons": [],
             "carouselCards": [],

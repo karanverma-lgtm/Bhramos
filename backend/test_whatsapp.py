@@ -29,8 +29,8 @@ payload = {
     ],
     "source": "new-landing-page form",
     "media": {
-        "url": "https://www.erickson.co.in/wp-content/uploads/2026/01/TASC1and2.jpeg",
-        "filename": "TASC1and2"
+        "url": "https://www.xmonks.com/TASCMAY.jpg",
+        "filename": "TASCMAY"
     },
     "buttons": [],
     "carouselCards": [],

@@ -96,7 +96,8 @@ document.getElementById("start").addEventListener("click", async () => {
 
   try {
     const config = JSON.parse(configText);
-    const maxPages = document.getElementById("maxPages").value;
+    const startPage = parseInt(document.getElementById("startPage").value) || 1;
+    const endPage = parseInt(document.getElementById("endPage").value) || startPage;
     const cookie = document.getElementById("cookie").value;
     const filename = document.getElementById("filename").value.trim() || "scraped_data";
     const enrich = document.getElementById("enrich").checked;
@@ -107,9 +108,14 @@ document.getElementById("start").addEventListener("click", async () => {
       throw new Error("li_at cookie is required. Log into LinkedIn first.");
     }
 
-    // Inject max_pages into config
+    if (endPage < startPage) {
+      throw new Error("End page cannot be less than start page.");
+    }
+
+    // Inject pagination info into config
     if (!config.pagination) config.pagination = {};
-    config.pagination.max_pages = parseInt(maxPages);
+    config.pagination.start_page = startPage;
+    config.pagination.end_page = endPage;
 
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
@@ -151,10 +157,74 @@ document.getElementById("start").addEventListener("click", async () => {
       throw new Error(errorData.error || "Failed to scrape");
     }
 
-    const blob = await response.blob();
+    const result = await response.json();
+    const scrapedData = result.data;
+
+    // --- Firebase Integration (REST API) ---
+    statusDiv.innerText = "📤 Storing data in Firebase...";
+    
+    const firebaseConfig = {
+      apiKey: "AIzaSyCT59RmQGjoVRiSfeytolrETrqtp-4XaIM",
+      projectId: "bhramos-ed537"
+    };
+
+    try {
+      // Store each record in Firestore
+      // We use the REST API to avoid CSP issues with external SDKs
+      const collectionName = "scraped_profiles";
+      
+      // Batching or sequential upload
+      for (const record of scrapedData) {
+        // Convert JS object to Firestore document format
+        const fields = {};
+        for (const [key, value] of Object.entries(record)) {
+          if (value === null || value === undefined) continue;
+          fields[key] = { stringValue: String(value) };
+        }
+        
+        // Add dataset and timestamp explicitly at the end
+        fields["dataset"] = { stringValue: filename || "default_dataset" };
+        fields["created_at"] = { stringValue: new Date().toISOString() };
+
+        // Use sanitized linkedin_url as a unique Document ID
+        let docId = "unknown_profile";
+        if (record.link) {
+          // Remove protocol and trailing slashes, replace / with _
+          docId = record.link.replace(/^https?:\/\//, "").replace(/\/$/, "").replace(/[\/\.]/g, "_");
+        } else if (record.linkedin_url) {
+          docId = record.linkedin_url.replace(/^https?:\/\//, "").replace(/\/$/, "").replace(/[\/\.]/g, "_");
+        }
+
+        console.log(`Upserting to Firebase (ID: ${docId}):`, fields);
+
+        const fbResponse = await fetch(`https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/${collectionName}/${docId}?key=${firebaseConfig.apiKey}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fields })
+        });
+        
+        if (!fbResponse.ok) {
+          const fbError = await fbResponse.json();
+          console.error(`Firebase API Error for ${docId}:`, fbError);
+        }
+      }
+      console.log("Firebase storage successful");
+    } catch (firebaseError) {
+      console.error("Firebase Storage Error:", firebaseError);
+      // We don't throw here so the user still gets their CSV
+    }
+
+    // --- CSV Download ---
+    // Convert JSON to CSV for download
+    const headers = Object.keys(scrapedData[0]);
+    const csvContent = [
+      headers.join(","),
+      ...scrapedData.map(row => headers.map(h => `"${String(row[h] || "").replace(/"/g, '""')}"`).join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     
-    // Sanitize filename and download
     const safeName = filename.replace(/[^a-zA-Z0-9_-]/g, '_');
     await chrome.downloads.download({
       url: url,
@@ -162,7 +232,7 @@ document.getElementById("start").addEventListener("click", async () => {
     });
 
     statusDiv.className = "status success";
-    statusDiv.innerText = "✅ Done! CSV downloaded.";
+    statusDiv.innerText = "✅ Done! Data stored in Firebase & CSV downloaded.";
   } catch (error) {
     console.error(error);
     statusDiv.className = "status error";

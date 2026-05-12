@@ -290,7 +290,14 @@ def scrape():
 
         fetcher = Fetcher()
         results = []
-        max_pages = int(config.get("pagination", {}).get("max_pages", 1))
+        pagination = config.get("pagination", {})
+        start_page = int(pagination.get("start_page", 1))
+        end_page = int(pagination.get("end_page", 1))
+        
+        if end_page < start_page:
+            end_page = start_page
+
+        total_pages = end_page - start_page + 1
 
         # Clean URL
         u = urlparse(url)
@@ -298,16 +305,17 @@ def scrape():
         if 'page' in q: del q['page']
         clean_base = urlunparse(u._replace(query=urlencode(q, doseq=True)))
 
-        for p in range(max_pages):
+        for i, p in enumerate(range(start_page, end_page + 1)):
             try:
                 curr_url = clean_base
-                if p > 0:
-                    u = urlparse(clean_base)
-                    q = parse_qs(u.query)
-                    q['page'] = [str(p + 1)]
-                    curr_url = urlunparse(u._replace(query=urlencode(q, doseq=True)))
+                # LinkedIn page 1 often doesn't need the &page=1 param, but it doesn't hurt.
+                # However, to be safe and match original behavior:
+                u = urlparse(clean_base)
+                q = parse_qs(u.query)
+                q['page'] = [str(p)]
+                curr_url = urlunparse(u._replace(query=urlencode(q, doseq=True)))
 
-                print(f"\n--- Page {p+1}/{max_pages} ---")
+                print(f"\n--- Page {p} ({i+1}/{total_pages}) ---")
                 resp = fetcher.get(curr_url, headers=headers)
                 
                 # Use scrapling's own parsed DOM (not raw HTML re-parse)
@@ -355,9 +363,9 @@ def scrape():
 
                 print(f"Extracted {page_results} profiles, skipped {skipped} mutual connections.")
             except Exception as e:
-                print(f"  [ERR] Failed to scrape page {p+1}: {str(e)}")
+                print(f"  [ERR] Failed to scrape page {p}: {str(e)}")
             
-            if p < max_pages - 1: time.sleep(1.5)
+            if i < total_pages - 1: time.sleep(1.5)
 
         if not results:
             return jsonify({"error": "No profiles found."}), 404
@@ -390,7 +398,13 @@ def scrape():
         
         path = os.path.join(os.getcwd(), f"{filename}.csv")
         df.to_csv(path, index=False)
-        return send_file(path, as_attachment=True, download_name=f"{filename}.csv")
+        
+        # Return JSON so extension can store in Firebase
+        return jsonify({
+            "message": "Scraping completed",
+            "data": df.to_dict(orient="records"),
+            "filename": f"{filename}.csv"
+        })
 
     except Exception as e:
         print(f"[FATAL] Unhandled error: {str(e)}")
